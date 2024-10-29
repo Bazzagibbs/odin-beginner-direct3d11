@@ -11,7 +11,7 @@ L :: intrinsics.constant_utf16_cstring
 
 
 // Some constants in `core:sys/windows` are cstrings, but should be UTF16 strings
-as_lstring :: proc "contextless" (cstr: cstring) -> [^]u16 {
+as_lstring :: #force_inline proc "contextless" (cstr: cstring) -> [^]u16 {
         return transmute([^]u16)(cstr)
 }
 

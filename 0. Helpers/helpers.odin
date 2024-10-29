@@ -44,6 +44,7 @@ assert_messagebox_generic :: #force_inline proc "contextless" (assertion: bool, 
         }
 }
 
+// Produce a human-readable utf-16 string from the profided HRESULT.
 parse_hresult :: #force_inline proc "contextless" (hResult: win.HRESULT) -> []u16 {
         out_str: rawptr
 
@@ -60,3 +61,7 @@ parse_hresult :: #force_inline proc "contextless" (hResult: win.HRESULT) -> []u1
         return ([^]u16)(out_str)[:msg_len]
 }
 
+// Not sure why this isn't part of `core:slice`. Gets the byte-size of a slice's `data` buffer.
+slice_data_size :: #force_inline proc "contextless" (slice: $T/[]$E) -> int {
+        return size_of(E) * len(slice)
+}

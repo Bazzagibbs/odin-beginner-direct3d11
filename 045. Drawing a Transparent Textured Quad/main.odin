@@ -14,7 +14,8 @@ import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
 
-WINDOW_NAME :: "03. Drawing a Textured Quad"
+// 045. instead of 035. as it relies on a constant buffer for transforming the quads
+WINDOW_NAME :: "045. Drawing a Transparent Textured Quad"
 
 L                 :: helpers.L
 as_lstring        :: helpers.as_lstring
@@ -394,15 +395,52 @@ main :: proc() {
         }
 
 
-        // Load texture
-        texture: ^d3d11.ITexture2D
-        texture_view: ^d3d11.IShaderResourceView
+        // Create blend state for opaque objects
+        blend_state_opaque: ^d3d11.IBlendState
         {
-                img, err := image.load_from_bytes(#load("texture.png"))
+                blend_desc := d3d11.BLEND_DESC {}
+                blend_desc.RenderTarget[0] = d3d11.RENDER_TARGET_BLEND_DESC {
+                        BlendEnable = false,
+                        RenderTargetWriteMask = u8(d3d11.COLOR_WRITE_ENABLE_ALL),
+                }
+
+                res := device->CreateBlendState(&blend_desc, &blend_state_opaque)
+                assert_messagebox(res, L("Create BlendState failed"))
+        }
+
+
+        // Create blend state for transparent objects
+        blend_state_transparent: ^d3d11.IBlendState
+        {
+                blend_desc := d3d11.BLEND_DESC {
+                        AlphaToCoverageEnable = false,
+                        IndependentBlendEnable = false,
+                }
+                blend_desc.RenderTarget[0] = d3d11.RENDER_TARGET_BLEND_DESC {
+                        BlendEnable = true,
+                        SrcBlend = .SRC_ALPHA,
+                        DestBlend = .INV_SRC_ALPHA,
+                        BlendOp = .ADD,
+                        SrcBlendAlpha = .SRC_ALPHA,
+                        DestBlendAlpha = .DEST_ALPHA,
+                        BlendOpAlpha = .ADD,
+                        RenderTargetWriteMask = u8(d3d11.COLOR_WRITE_ENABLE_ALL),
+                }
+
+                res := device->CreateBlendState(&blend_desc, &blend_state_transparent)
+                assert_messagebox(res, L("Create BlendState failed"))
+        }
+
+
+        // Load opaque texture
+        texture_opaque: ^d3d11.ITexture2D
+        texture_opaque_view: ^d3d11.IShaderResourceView
+        {
+                img, err := image.load_from_bytes(#load("texture_opaque.png"))
                 assert_messagebox(err == nil, L("Failed to load image"))
                 defer image.destroy(img)
 
-                image.alpha_add_if_missing(img) // dx11 does not support 24-byte (rgb8) images
+                image.alpha_add_if_missing(img)
                 assert_messagebox(img.depth == 8 && img.channels == 4, L("Image is not RGBA8"))
                 img_data := bytes.buffer_to_bytes(&img.pixels)
 
@@ -424,14 +462,54 @@ main :: proc() {
                         SysMemPitch = img_bytes_per_row,
                 }
 
-                res := device->CreateTexture2D(&texture_desc, &subresource_data, &texture)
+                res := device->CreateTexture2D(&texture_desc, &subresource_data, &texture_opaque)
                 assert_messagebox(res, L("CreateTexture2D failed"))
 
-                res  = device->CreateShaderResourceView(texture, nil, &texture_view)
+                res  = device->CreateShaderResourceView(texture_opaque, nil, &texture_opaque_view)
                 assert_messagebox(res, L("Create texture view failed"))
         }
-        defer texture->Release()
-        defer texture_view->Release()
+        defer texture_opaque->Release()
+        defer texture_opaque_view->Release()
+       
+
+        // Load transparent texture
+        texture_transparent: ^d3d11.ITexture2D
+        texture_transparent_view: ^d3d11.IShaderResourceView
+        {
+                img, err := image.load_from_bytes(#load("texture_transparent.png"))
+                assert_messagebox(err == nil, L("Failed to load image"))
+                defer image.destroy(img)
+
+                image.alpha_add_if_missing(img)
+                assert_messagebox(img.depth == 8 && img.channels == 4, L("Image is not RGBA8"))
+                img_data := bytes.buffer_to_bytes(&img.pixels)
+
+                texture_desc := d3d11.TEXTURE2D_DESC {
+                        Width     = u32(img.width),
+                        Height    = u32(img.height),
+                        MipLevels = 1,
+                        ArraySize = 1,
+                        Format    = .R8G8B8A8_UNORM_SRGB,
+                        Usage     = .IMMUTABLE,
+                        BindFlags = {.SHADER_RESOURCE},
+                        SampleDesc = { Count = 1 },
+                }
+
+                img_bytes_per_row := u32(img.width) * 4
+
+                subresource_data := d3d11.SUBRESOURCE_DATA {
+                        pSysMem     = raw_data(img_data),
+                        SysMemPitch = img_bytes_per_row,
+                }
+
+                res := device->CreateTexture2D(&texture_desc, &subresource_data, &texture_transparent)
+                assert_messagebox(res, L("CreateTexture2D failed"))
+
+                res  = device->CreateShaderResourceView(texture_transparent, nil, &texture_transparent_view)
+                assert_messagebox(res, L("Create texture view failed"))
+        }
+        defer texture_transparent->Release()
+        defer texture_transparent_view->Release()
 
 
         // Game loop
@@ -492,12 +570,19 @@ main :: proc() {
 
                 device_context->VSSetShader(vertex_shader, nil, 0)
                 device_context->PSSetShader(pixel_shader, nil, 0)
-
-                device_context->PSSetShaderResources(0, 1, &texture_view)
+                
                 device_context->PSSetSamplers(0, 1, &sampler)
-
                 device_context->IASetVertexBuffers(0, 1, &vertex_buffer, &vertex_stride, &vertex_offset)
 
+                blend_factor := [4]f32 {0, 0, 0, 0}
+                // Draw opaque meshes
+                device_context->OMSetBlendState(blend_state_opaque, &blend_factor, 0xffffffff)
+                device_context->PSSetShaderResources(0, 1, &texture_opaque_view)
+                device_context->Draw(vertex_count, 0)
+
+                // Draw transparent meshes
+                device_context->OMSetBlendState(blend_state_transparent, &blend_factor, 0xffffffff)
+                device_context->PSSetShaderResources(0, 1, &texture_transparent_view)
                 device_context->Draw(vertex_count, 0)
 
                 swapchain->Present(1, {})

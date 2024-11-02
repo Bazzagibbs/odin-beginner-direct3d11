@@ -6,6 +6,7 @@ import win "core:sys/windows"
 import "core:os"
 import "core:time"
 import "core:fmt"
+import "core:math"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
@@ -117,6 +118,8 @@ main :: proc() {
 
                 assert_messagebox(res, "CreateDevice() failed")
         }
+        defer device->Release()
+        defer device_context->Release()
 
 
         // Debug layer
@@ -141,7 +144,7 @@ main :: proc() {
                                 info_queue->AddStorageFilterEntries(&filter)
                                 info_queue->Release()
                         }
-                        defer device_debug->Release()
+                        device_debug->Release()
                 }
         }
 
@@ -196,6 +199,7 @@ main :: proc() {
                 )
                 assert_messagebox(res, "CreateSwapChain failed")
         }
+        defer swapchain->Release()
 
 
         // Create Framebuffer Render Target
@@ -209,6 +213,7 @@ main :: proc() {
                 res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
                 assert_messagebox(res, "CreateRenderTargetView failed")
         }
+        defer framebuffer_view->Release()
 
 
         shader_src := #load("shaders.hlsl")
@@ -309,15 +314,6 @@ main :: proc() {
                                 InputSlotClass       = .VERTEX_DATA,
                                 InstanceDataStepRate = 0,
                         }, 
-                        {
-                                SemanticName         = "color",
-                                SemanticIndex        = 0,
-                                Format               = .R32G32B32A32_FLOAT,
-                                InputSlot            = 0,
-                                AlignedByteOffset    = d3d11.APPEND_ALIGNED_ELEMENT,
-                                InputSlotClass       = .VERTEX_DATA,
-                                InstanceDataStepRate = 0,
-                        }, 
                 }
 
                 res := device->CreateInputLayout(
@@ -340,13 +336,13 @@ main :: proc() {
         vertex_offset: u32
         {      
                 vertex_data := []f32 {
-                //      x,    y,        r, g, b, a
-                        0,    0.5,      0, 1, 0, 1,
-                        0.5,  -0.5,     1, 0, 0, 1,
-                        -0.5, -0.5,     0, 0, 1, 1,
+                //      x,    y,   
+                        0,    0.5, 
+                        0.5,  -0.5,
+                        -0.5, -0.5,
                 }
-                vertex_stride = size_of(f32) * 6
-                vertex_count  = u32(len(vertex_data) / 6)
+                vertex_stride = size_of(f32) * 2
+                vertex_count  = u32(len(vertex_data) / 2)
                 vertex_offset = 0
 
                 vertex_buffer_desc := d3d11.BUFFER_DESC {
@@ -366,10 +362,40 @@ main :: proc() {
                 )
                 assert_messagebox(res, "Create VertexBuffer failed")
         }
+        defer vertex_buffer->Release()
+
+        
+        Constants :: struct #align(16) {
+                position   : [2]f32,
+                // padding : [8]byte, // (from #align directive. Constant buffers must be 16-byte aligned.)
+                color      : [4]f32,
+                testDELETEME : f32,
+        }
+
+        constant_buffer : ^d3d11.IBuffer
+        {
+                #assert(size_of(Constants) % 16 == 0, "Constant buffer size must be a multiple of 16")
+
+                buffer_desc := d3d11.BUFFER_DESC {
+                        ByteWidth      = size_of(Constants),
+                        Usage          = .DYNAMIC,
+                        BindFlags      = {.CONSTANT_BUFFER},
+                        CPUAccessFlags = {.WRITE},
+                }
+
+                res := device->CreateBuffer(
+                        pDesc = &buffer_desc, 
+                        pInitialData = nil,
+                        ppBuffer = &constant_buffer
+                )
+                assert_messagebox(res, "Create ConstantBuffer failed")
+        }
+        defer constant_buffer->Release()
 
 
         // Game loop
-        bg_color := [4]f32 {0, 0.4, 0.6, 1}
+        bg_color := [4]f32 {0.3, 0.4, 0.6, 1}
+        rotation := f32(0)
         is_running := true
         for is_running {
                 msg: win.MSG
@@ -399,11 +425,19 @@ main :: proc() {
                         app_state.did_resize = false
                 }
 
-                // Change background color over time
-                bg_color.r += 0.01
-                if bg_color.r > 0.5 {
-                        bg_color.r -= 0.5
-                }
+                // Update game data
+                rotation += 0.01
+
+                // Upload constants
+                mapped_constant_buffer: d3d11.MAPPED_SUBRESOURCE
+                map_res := device_context->Map(constant_buffer, 0, .WRITE_DISCARD, {}, &mapped_constant_buffer)
+
+                constants := (^Constants)(mapped_constant_buffer.pData)
+                constants.position = {math.cos(rotation), math.sin(rotation)} * 0.3
+                constants.color    = {0.7, 0.65, 0.1, 1}
+
+                device_context->Unmap(constant_buffer, 0)
+
 
                 device_context->ClearRenderTargetView(framebuffer_view, &bg_color)
 
@@ -427,6 +461,7 @@ main :: proc() {
                 device_context->VSSetShader(vertex_shader, nil, 0)
                 device_context->PSSetShader(pixel_shader, nil, 0)
 
+                device_context->VSSetConstantBuffers(0, 1, &constant_buffer)
                 device_context->IASetVertexBuffers(0, 1, &vertex_buffer, &vertex_stride, &vertex_offset)
 
                 device_context->Draw(vertex_count, 0)

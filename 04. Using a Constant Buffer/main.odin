@@ -2,19 +2,15 @@ package d3d11_demo
 
 import helpers "../0. Helpers"
 import "base:intrinsics"
-import "base:runtime"
 import win "core:sys/windows"
 import "core:os"
 import "core:time"
 import "core:fmt"
-import "core:image"
-import "core:image/png"
-import "core:bytes"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
 
-WINDOW_NAME :: "03. Drawing a Textured Quad"
+WINDOW_NAME :: "04. Using a Constant Buffer"
 
 assert_messagebox :: helpers.assert_messagebox
 slice_byte_size   :: helpers.slice_byte_size
@@ -241,7 +237,7 @@ main :: proc() {
                 if win.FAILED(res) {
                         if compile_errors != nil {
                                 error_str := compile_errors->GetBufferPointer()
-                                fmt.eprintfln("HLSL Compile error: %s", cstring(error_str))
+                                fmt.eprintln(error_str)
                                 compile_errors->Release()
                         }
                         assert_messagebox(res, "Vertex shader compilation failed")
@@ -314,9 +310,9 @@ main :: proc() {
                                 InstanceDataStepRate = 0,
                         }, 
                         {
-                                SemanticName         = "tex_coord",
+                                SemanticName         = "color",
                                 SemanticIndex        = 0,
-                                Format               = .R32G32_FLOAT,
+                                Format               = .R32G32B32A32_FLOAT,
                                 InputSlot            = 0,
                                 AlignedByteOffset    = d3d11.APPEND_ALIGNED_ELEMENT,
                                 InputSlotClass       = .VERTEX_DATA,
@@ -343,17 +339,14 @@ main :: proc() {
         vertex_stride: u32
         vertex_offset: u32
         {      
-                vertex_data := []f32 {          // clockwise winding
-                //      x,    y,        u, v
-                        -0.5,  0.5,     0, 0,   // top left
-                         0.5, -0.5,     1, 1,   // bottom right
-                        -0.5, -0.5,     0, 1,   // bottom left
-                        -0.5,  0.5,     0, 0,   // top left
-                         0.5,  0.5,     1, 0,   // top right
-                         0.5, -0.5,     1, 1,   // bottom right
+                vertex_data := []f32 {
+                //      x,    y,        r, g, b, a
+                        0,    0.5,      0, 1, 0, 1,
+                        0.5,  -0.5,     1, 0, 0, 1,
+                        -0.5, -0.5,     0, 0, 1, 1,
                 }
-                vertex_stride = size_of(f32) * 4
-                vertex_count  = u32(len(vertex_data) / 4)
+                vertex_stride = size_of(f32) * 6
+                vertex_count  = u32(len(vertex_data) / 6)
                 vertex_offset = 0
 
                 vertex_buffer_desc := d3d11.BUFFER_DESC {
@@ -375,63 +368,6 @@ main :: proc() {
         }
 
 
-        // Create sampler state
-        sampler: ^d3d11.ISamplerState
-        {
-                sampler_desc := d3d11.SAMPLER_DESC {
-                        Filter         = .MIN_MAG_MIP_POINT,
-                        AddressU       = .BORDER,
-                        AddressV       = .BORDER,
-                        AddressW       = .BORDER,
-                        ComparisonFunc = .NEVER,
-                        BorderColor    = {1, 1, 1, 0},
-                }
-
-                res := device->CreateSamplerState(&sampler_desc, &sampler)
-                assert_messagebox(res, "Create SamplerState failed")
-        }
-
-
-        // Load texture
-        texture: ^d3d11.ITexture2D
-        texture_view: ^d3d11.IShaderResourceView
-        {
-                img, err := image.load_from_bytes(#load("texture.png"))
-                assert_messagebox(err == nil, "Failed to load image")
-                defer image.destroy(img)
-
-                image.alpha_add_if_missing(img) // dx11 does not support 24-byte (rgb8) images
-                assert_messagebox(img.depth == 8 && img.channels == 4, "Image is not RGBA8")
-                img_data := bytes.buffer_to_bytes(&img.pixels)
-
-                texture_desc := d3d11.TEXTURE2D_DESC {
-                        Width     = u32(img.width),
-                        Height    = u32(img.height),
-                        MipLevels = 1,
-                        ArraySize = 1,
-                        Format    = .R8G8B8A8_UNORM_SRGB,
-                        Usage     = .IMMUTABLE,
-                        BindFlags = {.SHADER_RESOURCE},
-                        SampleDesc = { Count = 1 },
-                }
-
-                img_bytes_per_row := u32(img.width) * 4
-
-                subresource_data := d3d11.SUBRESOURCE_DATA {
-                        pSysMem     = raw_data(img_data),
-                        SysMemPitch = img_bytes_per_row,
-                }
-
-                res := device->CreateTexture2D(&texture_desc, &subresource_data, &texture)
-                assert_messagebox(res, "CreateTexture2D failed")
-
-                res  = device->CreateShaderResourceView(texture, nil, &texture_view)
-                assert_messagebox(res, "Create texture view failed")
-        }
-        defer texture->Release()
-        defer texture_view->Release()
-
-
         // Game loop
         bg_color := [4]f32 {0, 0.4, 0.6, 1}
         is_running := true
@@ -448,7 +384,7 @@ main :: proc() {
                 if app_state.did_resize {
                         device_context->OMSetRenderTargets(0, nil, nil)
                         framebuffer_view->Release()
-
+                       
                         res := swapchain->ResizeBuffers(0, 0, 0, .UNKNOWN, {})
                         assert_messagebox(res, "Swapchain buffer resize failed")
 
@@ -490,9 +426,6 @@ main :: proc() {
 
                 device_context->VSSetShader(vertex_shader, nil, 0)
                 device_context->PSSetShader(pixel_shader, nil, 0)
-
-                device_context->PSSetShaderResources(0, 1, &texture_view)
-                device_context->PSSetSamplers(0, 1, &sampler)
 
                 device_context->IASetVertexBuffers(0, 1, &vertex_buffer, &vertex_stride, &vertex_offset)
 

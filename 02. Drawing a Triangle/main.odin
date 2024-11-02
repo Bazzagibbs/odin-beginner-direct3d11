@@ -12,10 +12,8 @@ import "vendor:directx/d3d_compiler"
 
 WINDOW_NAME :: "02. Drawing a Triangle"
 
-L                 :: helpers.L
-as_lstring        :: helpers.as_lstring
 assert_messagebox :: helpers.assert_messagebox
-slice_data_size   :: helpers.slice_data_size
+slice_byte_size   :: helpers.slice_byte_size
 
 
 App_State :: struct {
@@ -65,19 +63,19 @@ main :: proc() {
                         style         = win.CS_HREDRAW | win.CS_VREDRAW,
                         lpfnWndProc   = wnd_proc,
                         hInstance     = hInstance,
-                        hIcon         = win.LoadIconW(nil, as_lstring(win.IDI_APPLICATION)),
-                        hCursor       = win.LoadCursorW(nil, as_lstring(win.IDC_ARROW)),
-                        lpszClassName = L(WINDOW_NAME),
-                        hIconSm       = win.LoadIconW(nil, as_lstring(win.IDI_APPLICATION)),
+                        hIcon         = win.LoadIconW(nil, transmute(win.wstring)(win.IDI_APPLICATION)),
+                        hCursor       = win.LoadCursorW(nil, transmute(win.wstring)(win.IDC_ARROW)),
+                        lpszClassName = win.L(WINDOW_NAME),
+                        hIconSm       = win.LoadIconW(nil, transmute(win.wstring)(win.IDI_APPLICATION)),
                 }
 
                 class_atom := win.RegisterClassExW(&window_class)
-                assert_messagebox(class_atom != 0, L("RegisterClassExW failed"))
+                assert_messagebox(class_atom != 0, "RegisterClassExW failed")
 
                 hWnd = win.CreateWindowExW(
                         dwExStyle    = win.WS_EX_OVERLAPPEDWINDOW,
                         lpClassName  = window_class.lpszClassName,
-                        lpWindowName = L(WINDOW_NAME),
+                        lpWindowName = win.L(WINDOW_NAME),
                         dwStyle      = win.WS_OVERLAPPEDWINDOW | win.WS_VISIBLE,
                         X            = win.CW_USEDEFAULT, // i32 min value, not zero
                         Y            = win.CW_USEDEFAULT,
@@ -89,7 +87,7 @@ main :: proc() {
                         lpParam      = rawptr(&app_state) // wndproc will use this as the userptr
                 )
 
-                assert_messagebox(hWnd != nil, L("CreateWindowExW failed"))
+                assert_messagebox(hWnd != nil, "CreateWindowExW failed")
         }
 
         // Provide a pointer to the app state to the wndproc
@@ -117,7 +115,7 @@ main :: proc() {
                         ppImmediateContext = &device_context,
                 )
 
-                assert_messagebox(res, L("CreateDevice() failed"))
+                assert_messagebox(res, "CreateDevice failed")
         }
 
 
@@ -156,19 +154,19 @@ main :: proc() {
                         dxgi_device: ^dxgi.IDevice1
                         res := device->QueryInterface(dxgi.IDevice1_UUID, (^rawptr)(&dxgi_device))
                         defer dxgi_device->Release()
-                        assert_messagebox(res, L("DXGI device interface query failed"))
+                        assert_messagebox(res, "DXGI device interface query failed")
 
                         dxgi_adapter: ^dxgi.IAdapter
                         res  = dxgi_device->GetAdapter(&dxgi_adapter)
                         defer dxgi_adapter->Release()
-                        assert_messagebox(res, L("DXGI adapter interface query failed"))
+                        assert_messagebox(res, "DXGI adapter interface query failed")
 
                         adapter_desc: dxgi.ADAPTER_DESC
                         dxgi_adapter->GetDesc(&adapter_desc)
                         fmt.printfln("Graphics device: %s", adapter_desc.Description)
 
                         res = dxgi_adapter->GetParent(dxgi.IFactory2_UUID, (^rawptr)(&factory))
-                        assert_messagebox(res, L("Get DXGI Factory failed"))
+                        assert_messagebox(res, "Get DXGI Factory failed")
                 }
                 defer factory->Release()
 
@@ -196,7 +194,7 @@ main :: proc() {
                         pRestrictToOutput = nil,
                         ppSwapChain       = &swapchain
                 )
-                assert_messagebox(res, L("CreateSwapChain failed"))
+                assert_messagebox(res, "CreateSwapChain failed")
         }
 
 
@@ -205,11 +203,11 @@ main :: proc() {
         {
                 framebuffer: ^d3d11.ITexture2D
                 res := swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
-                assert_messagebox(res, L("Get Framebuffer failed"))
+                assert_messagebox(res, "Get Framebuffer failed")
                 defer framebuffer->Release()
 
                 res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
-                assert_messagebox(res, L("CreateRenderTargetView failed"))
+                assert_messagebox(res, "CreateRenderTargetView failed")
         }
 
 
@@ -242,7 +240,7 @@ main :: proc() {
                                 fmt.eprintln(error_str)
                                 compile_errors->Release()
                         }
-                        assert_messagebox(res, L("Vertex shader compilation failed"))
+                        assert_messagebox(res, "Vertex shader compilation failed")
                 }
 
                 res = device->CreateVertexShader(
@@ -251,7 +249,7 @@ main :: proc() {
                         pClassLinkage   = nil,
                         ppVertexShader  = &vertex_shader
                 )
-                assert_messagebox(res, L("Vertex shader creation failed"))
+                assert_messagebox(res, "Vertex shader creation failed")
         }
         defer vertex_shader_blob->Release()
         defer vertex_shader->Release()
@@ -284,7 +282,7 @@ main :: proc() {
                                 fmt.eprintln(error_str)
                                 compile_errors->Release()
                         }
-                        assert_messagebox(res, L("Vertex shader compilation failed"))
+                        assert_messagebox(res, "Vertex shader compilation failed")
                 }
 
                 res = device->CreatePixelShader(
@@ -293,7 +291,7 @@ main :: proc() {
                         pClassLinkage   = nil,
                         ppPixelShader   = &pixel_shader
                 )
-                assert_messagebox(res, L("Vertex shader creation failed"))
+                assert_messagebox(res, "Vertex shader creation failed")
         }
         defer pixel_shader->Release()
 
@@ -329,7 +327,7 @@ main :: proc() {
                         BytecodeLength                    = vertex_shader_blob->GetBufferSize(),
                         ppInputLayout                     = &input_layout
                 )
-                assert_messagebox(res, L("Input layout creation failed"))
+                assert_messagebox(res, "Input layout creation failed")
                 // vertex_shader_blob is safe to release now
         }
         defer input_layout->Release()
@@ -352,7 +350,7 @@ main :: proc() {
                 vertex_offset = 0
 
                 vertex_buffer_desc := d3d11.BUFFER_DESC {
-                        ByteWidth = u32(slice_data_size(vertex_data)),
+                        ByteWidth = u32(slice_byte_size(vertex_data)),
                         Usage     = .IMMUTABLE,
                         BindFlags = {.VERTEX_BUFFER},
                 }
@@ -366,7 +364,7 @@ main :: proc() {
                         pInitialData = &vertex_subresource_data,
                         ppBuffer     = &vertex_buffer
                 )
-                assert_messagebox(res, L("Create VertexBuffer failed"))
+                assert_messagebox(res, "Create VertexBuffer failed")
         }
 
 
@@ -388,15 +386,15 @@ main :: proc() {
                         framebuffer_view->Release()
                        
                         res := swapchain->ResizeBuffers(0, 0, 0, .UNKNOWN, {})
-                        assert_messagebox(res, L("Swapchain buffer resize failed"))
+                        assert_messagebox(res, "Swapchain buffer resize failed")
 
                         framebuffer: ^d3d11.ITexture2D
                         res  = swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
-                        assert_messagebox(res, L("Get framebuffer failed"))
+                        assert_messagebox(res, "Get framebuffer failed")
                         defer framebuffer->Release()
 
                         res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
-                        assert_messagebox(res, L("Create RenderTargetView failed"))
+                        assert_messagebox(res, "Create RenderTargetView failed")
 
                         app_state.did_resize = false
                 }

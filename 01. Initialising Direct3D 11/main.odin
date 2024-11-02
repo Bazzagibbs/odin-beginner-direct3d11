@@ -11,8 +11,6 @@ import "vendor:directx/dxgi"
 
 WINDOW_NAME :: "01. Initialising Direct3D"
 
-L                 :: helpers.L
-as_lstring        :: helpers.as_lstring
 assert_messagebox :: helpers.assert_messagebox
 
 
@@ -47,19 +45,19 @@ main :: proc() {
                         style         = win.CS_HREDRAW | win.CS_VREDRAW,
                         lpfnWndProc   = wnd_proc,
                         hInstance     = hInstance,
-                        hIcon         = win.LoadIconW(nil, as_lstring(win.IDI_APPLICATION)),
-                        hCursor       = win.LoadCursorW(nil, as_lstring(win.IDC_ARROW)),
-                        lpszClassName = L(WINDOW_NAME),
-                        hIconSm       = win.LoadIconW(nil, as_lstring(win.IDI_APPLICATION)),
+                        hIcon         = win.LoadIconW(nil, transmute(win.wstring)(win.IDI_APPLICATION)),
+                        hCursor       = win.LoadCursorW(nil, transmute(win.wstring)(win.IDC_ARROW)),
+                        lpszClassName = win.L(WINDOW_NAME),
+                        hIconSm       = win.LoadIconW(nil, transmute(win.wstring)(win.IDI_APPLICATION)),
                 }
 
                 class_atom := win.RegisterClassExW(&window_class)
-                assert_messagebox(class_atom != 0, L("RegisterClassExW failed"))
+                assert_messagebox(class_atom != 0, "RegisterClassExW failed")
 
                 hWnd = win.CreateWindowExW(
                         dwExStyle    = win.WS_EX_OVERLAPPEDWINDOW,
                         lpClassName  = window_class.lpszClassName,
-                        lpWindowName = L(WINDOW_NAME),
+                        lpWindowName = win.L(WINDOW_NAME),
                         dwStyle      = win.WS_OVERLAPPEDWINDOW | win.WS_VISIBLE,
                         X            = win.CW_USEDEFAULT, // i32 min value
                         Y            = win.CW_USEDEFAULT,
@@ -71,7 +69,7 @@ main :: proc() {
                         lpParam      = nil
                 )
 
-                assert_messagebox(hWnd != nil, L("CreateWindowExW failed"))
+                assert_messagebox(hWnd != nil, "CreateWindowExW failed")
         }
 
         // Create D3D11 Device and Context
@@ -97,7 +95,7 @@ main :: proc() {
                         ppImmediateContext = &device_context,
                 )
 
-                assert_messagebox(res, L("CreateDevice() failed"))
+                assert_messagebox(res, "CreateDevice() failed")
         }
 
 
@@ -136,19 +134,19 @@ main :: proc() {
                         dxgi_device: ^dxgi.IDevice1
                         res := device->QueryInterface(dxgi.IDevice1_UUID, (^rawptr)(&dxgi_device))
                         defer dxgi_device->Release()
-                        assert_messagebox(res, L("DXGI device interface query failed"))
+                        assert_messagebox(res, "DXGI device interface query failed")
 
                         dxgi_adapter: ^dxgi.IAdapter
                         res  = dxgi_device->GetAdapter(&dxgi_adapter)
                         defer dxgi_adapter->Release()
-                        assert_messagebox(res, L("DXGI adapter interface query failed"))
+                        assert_messagebox(res, "DXGI adapter interface query failed")
 
                         adapter_desc: dxgi.ADAPTER_DESC
                         dxgi_adapter->GetDesc(&adapter_desc)
                         fmt.printfln("Graphics device: %s", adapter_desc.Description)
 
                         res = dxgi_adapter->GetParent(dxgi.IFactory2_UUID, (^rawptr)(&factory))
-                        assert_messagebox(res, L("Get DXGI Factory failed"))
+                        assert_messagebox(res, "Get DXGI Factory failed")
                 }
                 defer factory->Release()
 
@@ -176,7 +174,7 @@ main :: proc() {
                         pRestrictToOutput = nil,
                         ppSwapChain       = &swapchain
                 )
-                assert_messagebox(res, L("CreateSwapChain failed"))
+                assert_messagebox(res, "CreateSwapChain failed")
         }
 
 
@@ -185,11 +183,11 @@ main :: proc() {
         {
                 framebuffer: ^d3d11.ITexture2D
                 res := swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
-                assert_messagebox(res, L("Get Framebuffer failed"))
+                assert_messagebox(res, "Get Framebuffer failed")
                 defer framebuffer->Release()
 
                 res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
-                assert_messagebox(res, L("CreateRenderTargetView failed"))
+                assert_messagebox(res, "CreateRenderTargetView failed")
         }
 
 

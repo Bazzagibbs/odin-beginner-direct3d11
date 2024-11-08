@@ -10,12 +10,12 @@ import "core:fmt"
 import "core:image"
 import "core:image/png"
 import "core:bytes"
+import "core:mem"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
 
-// 045. instead of 035. as it relies on a constant buffer for transforming the quads
-WINDOW_NAME :: "045. Drawing a Transparent Textured Quad"
+WINDOW_NAME :: "05. Drawing a Transparent Textured Quad"
 
 assert_messagebox :: helpers.assert_messagebox
 slice_byte_size   :: helpers.slice_byte_size
@@ -203,8 +203,9 @@ main :: proc() {
         }
 
 
-        // Create Framebuffer Render Target
+        // Create Framebuffer Render Target and Depth buffer
         framebuffer_view: ^d3d11.IRenderTargetView
+        depth_buffer_view: ^d3d11.IDepthStencilView
         {
                 framebuffer: ^d3d11.ITexture2D
                 res := swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
@@ -213,7 +214,36 @@ main :: proc() {
 
                 res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
                 assert_messagebox(res, "CreateRenderTargetView failed")
+
+                // Depth buffer
+                depth_buffer_desc : d3d11.TEXTURE2D_DESC
+                framebuffer->GetDesc(&depth_buffer_desc)
+
+                depth_buffer_desc.Format    = .D24_UNORM_S8_UINT
+                depth_buffer_desc.BindFlags = {.DEPTH_STENCIL}
+
+                depth_buffer : ^d3d11.ITexture2D
+                res = device->CreateTexture2D(&depth_buffer_desc, nil, &depth_buffer)
+                assert_messagebox(res, "Create DepthBuffer failed")
+                defer depth_buffer->Release()
+
+                device->CreateDepthStencilView(depth_buffer, nil, &depth_buffer_view)
         }
+        defer framebuffer_view->Release()
+        defer depth_buffer_view->Release()
+
+
+        depth_stencil_state : ^d3d11.IDepthStencilState
+        {
+                depth_stencil_desc := d3d11.DEPTH_STENCIL_DESC {
+                        DepthEnable    = true,
+                        DepthWriteMask = .ALL,
+                        DepthFunc      = .LESS,
+                }
+
+                device->CreateDepthStencilState(&depth_stencil_desc, &depth_stencil_state)
+        }
+        defer depth_stencil_state->Release()
 
 
         shader_src := #load("shaders.hlsl")
@@ -509,9 +539,33 @@ main :: proc() {
         defer texture_transparent->Release()
         defer texture_transparent_view->Release()
 
+        
+        Constants :: struct #align(16) {
+                position   : [3]f32,
+        }
+
+        constant_buffer : ^d3d11.IBuffer
+        {
+                #assert(size_of(Constants) % 16 == 0, "Constant buffer size must be a multiple of 16")
+
+                buffer_desc := d3d11.BUFFER_DESC {
+                        ByteWidth      = size_of(Constants),
+                        Usage          = .DYNAMIC,
+                        BindFlags      = {.CONSTANT_BUFFER},
+                        CPUAccessFlags = {.WRITE},
+                }
+
+                res := device->CreateBuffer(
+                        pDesc = &buffer_desc, 
+                        pInitialData = nil,
+                        ppBuffer = &constant_buffer
+                )
+                assert_messagebox(res, "Create ConstantBuffer failed")
+        }
+        defer constant_buffer->Release()
+
 
         // Game loop
-        bg_color := [4]f32 {0, 0.4, 0.6, 1}
         is_running := true
         for is_running {
                 msg: win.MSG
@@ -526,10 +580,12 @@ main :: proc() {
                 if app_state.did_resize {
                         device_context->OMSetRenderTargets(0, nil, nil)
                         framebuffer_view->Release()
+                        depth_buffer_view->Release()
 
                         res := swapchain->ResizeBuffers(0, 0, 0, .UNKNOWN, {})
                         assert_messagebox(res, "Swapchain buffer resize failed")
 
+                        // Framebuffer
                         framebuffer: ^d3d11.ITexture2D
                         res  = swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
                         assert_messagebox(res, "Get framebuffer failed")
@@ -537,17 +593,27 @@ main :: proc() {
 
                         res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
                         assert_messagebox(res, "Create RenderTargetView failed")
+                       
+                        // Depth buffer
+                        depth_buffer_desc : d3d11.TEXTURE2D_DESC
+                        framebuffer->GetDesc(&depth_buffer_desc)
+
+                        depth_buffer_desc.Format    = .D24_UNORM_S8_UINT
+                        depth_buffer_desc.BindFlags = {.DEPTH_STENCIL}
+
+                        depth_buffer : ^d3d11.ITexture2D
+                        res = device->CreateTexture2D(&depth_buffer_desc, nil, &depth_buffer)
+                        assert_messagebox(res, "Create DepthBuffer failed")
+                        defer depth_buffer->Release()
+
+                        device->CreateDepthStencilView(depth_buffer, nil, &depth_buffer_view)
 
                         app_state.did_resize = false
                 }
 
-                // Change background color over time
-                bg_color.r += 0.01
-                if bg_color.r > 0.5 {
-                        bg_color.r -= 0.5
-                }
-
+                bg_color := [4]f32 {0, 0.4, 0.6, 1}
                 device_context->ClearRenderTargetView(framebuffer_view, &bg_color)
+                device_context->ClearDepthStencilView(depth_buffer_view, {.DEPTH}, 1, 0)
 
                 window_rect: win.RECT
                 win.GetClientRect(hWnd, &window_rect)
@@ -561,7 +627,8 @@ main :: proc() {
                 }
 
                 device_context->RSSetViewports(1, &viewport)
-                device_context->OMSetRenderTargets(1, &framebuffer_view, nil)
+                device_context->OMSetRenderTargets(1, &framebuffer_view, depth_buffer_view)
+                device_context->OMSetDepthStencilState(depth_stencil_state, 0)
 
                 device_context->IASetPrimitiveTopology(.TRIANGLELIST)
                 device_context->IASetInputLayout(input_layout)
@@ -573,17 +640,46 @@ main :: proc() {
                 device_context->IASetVertexBuffers(0, 1, &vertex_buffer, &vertex_stride, &vertex_offset)
 
                 blend_factor := [4]f32 {0, 0, 0, 0}
+
+
                 // Draw opaque meshes
                 device_context->OMSetBlendState(blend_state_opaque, &blend_factor, 0xffffffff)
                 device_context->PSSetShaderResources(0, 1, &texture_opaque_view)
+
+                // Front quad
+                mapped_constant_buffer : d3d11.MAPPED_SUBRESOURCE
+                front_quad_constants := Constants { position = {0.2, -0.2, 0} }
+                device_context->Map(constant_buffer, 0, .WRITE_DISCARD, {}, &mapped_constant_buffer)
+                mem.copy(mapped_constant_buffer.pData, &front_quad_constants, size_of(Constants))
+                device_context->Unmap(constant_buffer, 0)
+                
+                device_context->VSSetConstantBuffers(0, 1, &constant_buffer)
                 device_context->Draw(vertex_count, 0)
+                
+                // Back quad
+                back_quad_constants := Constants { position = {-0.2, 0.2, 0.4} }
+                device_context->Map(constant_buffer, 0, .WRITE_DISCARD, {}, &mapped_constant_buffer)
+                mem.copy(mapped_constant_buffer.pData, &back_quad_constants, size_of(Constants))
+                device_context->Unmap(constant_buffer, 0)
+                
+                device_context->VSSetConstantBuffers(0, 1, &constant_buffer)
+                device_context->Draw(vertex_count, 0)
+
 
                 // Draw transparent meshes
                 device_context->OMSetBlendState(blend_state_transparent, &blend_factor, 0xffffffff)
                 device_context->PSSetShaderResources(0, 1, &texture_transparent_view)
+
+                // Middle quad
+                middle_quad_constants := Constants { position = {0, 0, 0.2} }
+                device_context->Map(constant_buffer, 0, .WRITE_DISCARD, {}, &mapped_constant_buffer)
+                mem.copy(mapped_constant_buffer.pData, &middle_quad_constants, size_of(Constants))
+                device_context->Unmap(constant_buffer, 0)
+
+                device_context->VSSetConstantBuffers(0, 1, &constant_buffer)
                 device_context->Draw(vertex_count, 0)
 
                 swapchain->Present(1, {})
-                time.sleep(time.Millisecond * 16)
+                time.sleep(time.Millisecond * 16) // Note: inaccurate timer
         }
 }

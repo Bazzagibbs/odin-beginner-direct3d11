@@ -18,7 +18,7 @@ assert_messagebox_hresult :: #force_inline proc (hResult: win.HRESULT, message_a
                 if hResult < 0 {
                         message := fmt.tprint(message_args)
                         win.MessageBoxW(nil, win.utf8_to_wstring(message), win.L("Fatal Error"), win.MB_ICONERROR | win.MB_OK)
-                        fmt.eprintln("%v: %v %s", loc, message, parse_hresult(hResult))
+                        fmt.eprintfln("%v: %v %s", loc, message, parse_hresult(hResult))
                         intrinsics.debug_trap()
                         os.exit(int(win.GetLastError()))
                 }
@@ -30,7 +30,7 @@ assert_messagebox_generic :: #force_inline proc (assertion: bool, message_args: 
                 if !assertion {
                         message := fmt.tprint(message_args)
                         win.MessageBoxW(nil, win.utf8_to_wstring(message), win.L("Fatal Error"), win.MB_OK)
-                        fmt.eprintln("%v: %v", loc, message)
+                        fmt.eprintfln("%v: %v", loc, message)
                         intrinsics.debug_trap()
                         os.exit(int(win.GetLastError()))
                 }

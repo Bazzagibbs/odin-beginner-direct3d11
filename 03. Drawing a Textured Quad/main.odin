@@ -19,21 +19,12 @@ WINDOW_NAME :: "03. Drawing a Textured Quad"
 assert_messagebox :: helpers.assert_messagebox
 slice_byte_size   :: helpers.slice_byte_size
 
-
-App_State :: struct {
-        did_resize : bool,
-}
-
+did_resize : bool
 
 wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, lParam: win.LPARAM) -> (result: win.LRESULT) {
         result = 0
 
         switch uMsg {
-        case win.WM_CREATE: 
-                // Set app_state userptr for future messages
-                createstruct := transmute(^win.CREATESTRUCTW)lParam
-                win.SetWindowLongPtrW(hWnd, win.GWLP_USERDATA, transmute(int)createstruct.lpCreateParams)
-
         case win.WM_KEYDOWN: 
                 if wParam == win.VK_ESCAPE {
                         win.DestroyWindow(hWnd)
@@ -43,8 +34,7 @@ wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, 
                 win.PostQuitMessage(0)
 
         case win.WM_SIZE:
-                app_state := transmute(^App_State)win.GetWindowLongPtrW(hWnd, win.GWLP_USERDATA)
-                app_state.did_resize = true
+                did_resize = true
 
         case:
                 result = win.DefWindowProcW(hWnd, uMsg, wParam, lParam)
@@ -56,8 +46,6 @@ wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, 
 
 main :: proc() {
         hInstance := win.HINSTANCE(win.GetModuleHandleW(nil))
-
-        app_state : App_State
 
         // Open a window
         hWnd: win.HWND
@@ -88,7 +76,7 @@ main :: proc() {
                         hWndParent   = nil,
                         hMenu        = nil,
                         hInstance    = hInstance,
-                        lpParam      = rawptr(&app_state) // wndproc will use this as the userptr
+                        lpParam      = nil
                 )
 
                 assert_messagebox(hWnd != nil, "CreateWindowExW failed")
@@ -121,6 +109,8 @@ main :: proc() {
 
                 assert_messagebox(res, "CreateDevice() failed")
         }
+        defer device->Release()
+        defer device_context->Release()
 
 
         // Debug layer
@@ -145,7 +135,7 @@ main :: proc() {
                                 info_queue->AddStorageFilterEntries(&filter)
                                 info_queue->Release()
                         }
-                        defer device_debug->Release()
+                        device_debug->Release()
                 }
         }
 
@@ -200,6 +190,7 @@ main :: proc() {
                 )
                 assert_messagebox(res, "CreateSwapChain failed")
         }
+        defer swapchain->Release()
 
 
         // Create Framebuffer Render Target
@@ -213,6 +204,7 @@ main :: proc() {
                 res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
                 assert_messagebox(res, "CreateRenderTargetView failed")
         }
+        defer framebuffer_view->Release()
 
 
         shader_src := #load("shaders.hlsl")
@@ -286,7 +278,7 @@ main :: proc() {
                                 fmt.eprintln(error_str)
                                 compile_errors->Release()
                         }
-                        assert_messagebox(res, "Vertex shader compilation failed")
+                        assert_messagebox(res, "Pixel shader compilation failed")
                 }
 
                 res = device->CreatePixelShader(
@@ -295,7 +287,7 @@ main :: proc() {
                         pClassLinkage   = nil,
                         ppPixelShader   = &pixel_shader
                 )
-                assert_messagebox(res, "Vertex shader creation failed")
+                assert_messagebox(res, "Pixel shader creation failed")
         }
         defer pixel_shader->Release()
 
@@ -373,6 +365,7 @@ main :: proc() {
                 )
                 assert_messagebox(res, "Create VertexBuffer failed")
         }
+        defer vertex_buffer->Release()
 
 
         // Create sampler state
@@ -390,6 +383,7 @@ main :: proc() {
                 res := device->CreateSamplerState(&sampler_desc, &sampler)
                 assert_messagebox(res, "Create SamplerState failed")
         }
+        defer sampler->Release()
 
 
         // Load texture
@@ -433,7 +427,6 @@ main :: proc() {
 
 
         // Game loop
-        bg_color := [4]f32 {0, 0.4, 0.6, 1}
         is_running := true
         for is_running {
                 msg: win.MSG
@@ -445,7 +438,7 @@ main :: proc() {
                         win.DispatchMessageW(&msg)
                 }
 
-                if app_state.did_resize {
+                if did_resize {
                         device_context->OMSetRenderTargets(0, nil, nil)
                         framebuffer_view->Release()
 
@@ -460,15 +453,10 @@ main :: proc() {
                         res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
                         assert_messagebox(res, "Create RenderTargetView failed")
 
-                        app_state.did_resize = false
+                        did_resize = false
                 }
 
-                // Change background color over time
-                bg_color.r += 0.01
-                if bg_color.r > 0.5 {
-                        bg_color.r -= 0.5
-                }
-
+                bg_color := [4]f32 {0, 0.4, 0.6, 1}
                 device_context->ClearRenderTargetView(framebuffer_view, &bg_color)
 
                 window_rect: win.RECT
@@ -499,6 +487,6 @@ main :: proc() {
                 device_context->Draw(vertex_count, 0)
 
                 swapchain->Present(1, {})
-                time.sleep(time.Millisecond * 16)
+                time.sleep(time.Millisecond * 16) // Note: inaccurate timer
         }
 }

@@ -1,3 +1,8 @@
+cbuffer constants : register(b0) {
+        float3 offset;
+};
+
+
 struct VS_Input {
         float2 position  : position;
         float2 tex_coord : tex_coord;
@@ -12,7 +17,7 @@ struct V2P {
 
 V2P vertex_main(VS_Input input) {
         V2P output;
-        output.position = float4(input.position, 0.0f, 1.0f);
+        output.position = float4(input.position + offset.xy, offset.z, 1.0f);
         output.tex_coord = input.tex_coord;
 
         return output;

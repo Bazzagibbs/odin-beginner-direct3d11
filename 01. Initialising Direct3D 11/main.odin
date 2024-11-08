@@ -97,6 +97,8 @@ main :: proc() {
 
                 assert_messagebox(res, "CreateDevice() failed")
         }
+        defer device->Release()
+        defer device_context->Release()
 
 
         // Debug layer
@@ -121,7 +123,7 @@ main :: proc() {
                                 info_queue->AddStorageFilterEntries(&filter)
                                 info_queue->Release()
                         }
-                        defer device_debug->Release()
+                        device_debug->Release()
                 }
         }
 
@@ -176,6 +178,7 @@ main :: proc() {
                 )
                 assert_messagebox(res, "CreateSwapChain failed")
         }
+        defer swapchain->Release()
 
 
         // Create Framebuffer Render Target
@@ -189,10 +192,10 @@ main :: proc() {
                 res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
                 assert_messagebox(res, "CreateRenderTargetView failed")
         }
+        defer framebuffer_view->Release()
 
 
         // Game loop
-        bg_color := [4]f32 {0, 0.4, 0.6, 1}
         is_running := true
         for is_running {
                 msg: win.MSG
@@ -204,14 +207,9 @@ main :: proc() {
                         win.DispatchMessageW(&msg)
                 }
 
-                // Change background color over time
-                bg_color.r += 0.01
-                if bg_color.r > 0.5 {
-                        bg_color.r -= 0.5
-                }
-
+                bg_color := [4]f32 {0, 0.4, 0.6, 1}
                 device_context->ClearRenderTargetView(framebuffer_view, &bg_color)
                 swapchain->Present(1, {})
-                time.sleep(time.Millisecond * 16)
+                time.sleep(time.Millisecond * 16) // Note: inaccurate timer
         }
 }

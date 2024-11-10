@@ -1,6 +1,11 @@
+cbuffer constants : register(b0) {
+        float2 offset;
+        float4 uniform_color;
+};
+
+
 struct VS_Input {
         float2 position : position;
-        float4 color    : color;
 };
 
 
@@ -12,11 +17,12 @@ struct V2P {
 
 V2P vertex_main(VS_Input input) {
         V2P output;
-        output.position = float4(input.position, 0.0f, 1.0f);
-        output.color = input.color;
+        output.position = float4(input.position + offset, 0.0f, 1.0f);
+        output.color = uniform_color;
 
         return output;
 }
+
 
 float4 pixel_main(V2P input) : SV_TARGET {
         return input.color;

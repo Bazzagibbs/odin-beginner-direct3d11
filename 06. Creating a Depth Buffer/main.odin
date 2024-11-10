@@ -15,7 +15,7 @@ import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
 
-WINDOW_NAME :: "05. Creating a Depth Buffer"
+WINDOW_NAME :: "06. Creating a Depth Buffer"
 
 assert_messagebox :: helpers.assert_messagebox
 slice_byte_size   :: helpers.slice_byte_size

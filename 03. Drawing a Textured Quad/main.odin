@@ -487,6 +487,5 @@ main :: proc() {
                 device_context->Draw(vertex_count, 0)
 
                 swapchain->Present(1, {})
-                time.sleep(time.Millisecond * 16) // Note: inaccurate timer
         }
 }

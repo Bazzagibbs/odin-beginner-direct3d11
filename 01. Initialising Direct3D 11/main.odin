@@ -209,7 +209,6 @@ main :: proc() {
 
                 bg_color := [4]f32 {0, 0.4, 0.6, 1}
                 device_context->ClearRenderTargetView(framebuffer_view, &bg_color)
-                swapchain->Present(1, {})
-                time.sleep(time.Millisecond * 16) // Note: inaccurate timer
+                swapchain->Present(1, {}) // waits for vsync. Set to 0 for no vsync
         }
 }

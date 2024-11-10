@@ -20,21 +20,12 @@ WINDOW_NAME :: "05. Creating a Depth Buffer"
 assert_messagebox :: helpers.assert_messagebox
 slice_byte_size   :: helpers.slice_byte_size
 
-
-App_State :: struct {
-        did_resize : bool,
-}
-
+did_resize : bool
 
 wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, lParam: win.LPARAM) -> (result: win.LRESULT) {
         result = 0
 
         switch uMsg {
-        case win.WM_CREATE: 
-                // Set app_state userptr for future messages
-                createstruct := transmute(^win.CREATESTRUCTW)lParam
-                win.SetWindowLongPtrW(hWnd, win.GWLP_USERDATA, transmute(int)createstruct.lpCreateParams)
-
         case win.WM_KEYDOWN: 
                 if wParam == win.VK_ESCAPE {
                         win.DestroyWindow(hWnd)
@@ -44,8 +35,7 @@ wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, 
                 win.PostQuitMessage(0)
 
         case win.WM_SIZE:
-                app_state := transmute(^App_State)win.GetWindowLongPtrW(hWnd, win.GWLP_USERDATA)
-                app_state.did_resize = true
+                did_resize = true
 
         case:
                 result = win.DefWindowProcW(hWnd, uMsg, wParam, lParam)
@@ -57,8 +47,6 @@ wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, 
 
 main :: proc() {
         hInstance := win.HINSTANCE(win.GetModuleHandleW(nil))
-
-        app_state : App_State
 
         // Open a window
         hWnd: win.HWND
@@ -89,7 +77,7 @@ main :: proc() {
                         hWndParent   = nil,
                         hMenu        = nil,
                         hInstance    = hInstance,
-                        lpParam      = rawptr(&app_state) // wndproc will use this as the userptr
+                        lpParam      = nil
                 )
 
                 assert_messagebox(hWnd != nil, "CreateWindowExW failed")
@@ -500,7 +488,7 @@ main :: proc() {
                         win.DispatchMessageW(&msg)
                 }
 
-                if app_state.did_resize {
+                if did_resize {
                         device_context->OMSetRenderTargets(0, nil, nil)
                         framebuffer_view->Release()
                         depth_buffer_view->Release()
@@ -531,7 +519,7 @@ main :: proc() {
 
                         device->CreateDepthStencilView(depth_buffer, nil, &depth_buffer_view)
 
-                        app_state.did_resize = false
+                        did_resize = false
                 }
 
                 bg_color := [4]f32 {0, 0.4, 0.6, 1}

@@ -22,6 +22,34 @@ slice_byte_size   :: helpers.slice_byte_size
 
 did_resize : bool
 
+
+render_target_init :: proc (device: ^d3d11.IDevice, swapchain: ^dxgi.ISwapChain1) -> (framebuffer_view: ^d3d11.IRenderTargetView, depth_buffer_view: ^d3d11.IDepthStencilView) {
+        // Framebuffer
+        framebuffer: ^d3d11.ITexture2D
+        res := swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
+        assert_messagebox(res, "Get Framebuffer failed")
+        defer framebuffer->Release()
+
+        res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
+        assert_messagebox(res, "CreateRenderTargetView failed")
+
+        // Depth buffer
+        depth_buffer_desc : d3d11.TEXTURE2D_DESC
+        framebuffer->GetDesc(&depth_buffer_desc)
+
+        depth_buffer_desc.Format    = .D24_UNORM_S8_UINT
+        depth_buffer_desc.BindFlags = {.DEPTH_STENCIL}
+
+        depth_buffer : ^d3d11.ITexture2D
+        res = device->CreateTexture2D(&depth_buffer_desc, nil, &depth_buffer)
+        assert_messagebox(res, "Create DepthBuffer failed")
+        defer depth_buffer->Release()
+
+        device->CreateDepthStencilView(depth_buffer, nil, &depth_buffer_view)
+        return
+}
+
+
 wnd_proc :: proc "stdcall" (hWnd: win.HWND, uMsg: win.UINT, wParam: win.WPARAM, lParam: win.LPARAM) -> (result: win.LRESULT) {
         result = 0
 
@@ -194,29 +222,9 @@ main :: proc() {
         // Create Framebuffer Render Target and Depth buffer
         framebuffer_view: ^d3d11.IRenderTargetView
         depth_buffer_view: ^d3d11.IDepthStencilView
-        {
-                framebuffer: ^d3d11.ITexture2D
-                res := swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
-                assert_messagebox(res, "Get Framebuffer failed")
-                defer framebuffer->Release()
+        
+        framebuffer_view, depth_buffer_view = render_target_init(device, swapchain)
 
-                res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
-                assert_messagebox(res, "CreateRenderTargetView failed")
-
-                // Depth buffer
-                depth_buffer_desc : d3d11.TEXTURE2D_DESC
-                framebuffer->GetDesc(&depth_buffer_desc)
-
-                depth_buffer_desc.Format    = .D24_UNORM_S8_UINT
-                depth_buffer_desc.BindFlags = {.DEPTH_STENCIL}
-
-                depth_buffer : ^d3d11.ITexture2D
-                res = device->CreateTexture2D(&depth_buffer_desc, nil, &depth_buffer)
-                assert_messagebox(res, "Create DepthBuffer failed")
-                defer depth_buffer->Release()
-
-                device->CreateDepthStencilView(depth_buffer, nil, &depth_buffer_view)
-        }
         defer framebuffer_view->Release()
         defer depth_buffer_view->Release()
 
@@ -496,29 +504,7 @@ main :: proc() {
                         res := swapchain->ResizeBuffers(0, 0, 0, .UNKNOWN, {})
                         assert_messagebox(res, "Swapchain buffer resize failed")
 
-                        // Framebuffer
-                        framebuffer: ^d3d11.ITexture2D
-                        res  = swapchain->GetBuffer(0, d3d11.ITexture2D_UUID, (^rawptr)(&framebuffer))
-                        assert_messagebox(res, "Get framebuffer failed")
-                        defer framebuffer->Release()
-
-                        res  = device->CreateRenderTargetView(framebuffer, nil, &framebuffer_view)
-                        assert_messagebox(res, "Create RenderTargetView failed")
-                       
-                        // Depth buffer
-                        depth_buffer_desc : d3d11.TEXTURE2D_DESC
-                        framebuffer->GetDesc(&depth_buffer_desc)
-
-                        depth_buffer_desc.Format    = .D24_UNORM_S8_UINT
-                        depth_buffer_desc.BindFlags = {.DEPTH_STENCIL}
-
-                        depth_buffer : ^d3d11.ITexture2D
-                        res = device->CreateTexture2D(&depth_buffer_desc, nil, &depth_buffer)
-                        assert_messagebox(res, "Create DepthBuffer failed")
-                        defer depth_buffer->Release()
-
-                        device->CreateDepthStencilView(depth_buffer, nil, &depth_buffer_view)
-
+                        framebuffer_view, depth_buffer_view = render_target_init(device, swapchain)
                         did_resize = false
                 }
 

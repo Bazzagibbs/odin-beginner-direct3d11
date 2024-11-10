@@ -27,9 +27,5 @@ Texture2D _texture    : register(t0);
 SamplerState _sampler : register(s0);
 
 float4 pixel_main(V2P input) : SV_TARGET {
-        float4 color = _texture.Sample(_sampler, input.tex_coord);
-        if (color.a < 0.1) {
-                discard;
-        }
-        return color;
+        return _texture.Sample(_sampler, input.tex_coord);
 }

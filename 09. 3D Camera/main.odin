@@ -17,6 +17,12 @@ import "vendor:directx/d3d_compiler"
 
 WINDOW_NAME :: "09. 3D Camera"
 
+/*
+        This example uses a flipped depth buffer (1=near, 0=far).
+        Doing this allows floating-point precision to be more evenly spread out
+        over the depth of the camera frustum.
+*/
+
 assert_messagebox :: helpers.assert_messagebox
 
 did_resize : bool
@@ -87,13 +93,13 @@ render_target_init :: proc (device: ^d3d11.IDevice, swapchain: ^dxgi.ISwapChain1
 }
 
 
-// A perspective projection matrix where the clip space is x, y [-1, 1] and depth is 0 = near, 1 = far.
+// A perspective projection matrix where the clip space is x, y [-1, 1] and depth is reversed (1 = near, 0 = far). 
 // We can't use `linalg.matrix4_perspective()` as it uses OpenGL clip space (depth [-1, 1]).
 matrix_perspective_01 :: proc (fovy, aspect, near, far: f32) -> matrix[4,4]f32 {
         y_scale       := 1 / math.tan(fovy * 0.5)
         x_scale       := y_scale / aspect
-        z_scale       := far / (far - near)
-        z_translation := -near * z_scale
+        z_scale       := near / (near - far)
+        z_translation := -far * z_scale
 
         return matrix[4,4]f32 {
                 x_scale, 0, 0, 0,
@@ -295,7 +301,7 @@ main :: proc() {
                 depth_stencil_desc := d3d11.DEPTH_STENCIL_DESC {
                         DepthEnable    = true,
                         DepthWriteMask = .ALL,
-                        DepthFunc      = .LESS,
+                        DepthFunc      = .GREATER,
                 }
 
                 device->CreateDepthStencilState(&depth_stencil_desc, &depth_stencil_state)
@@ -641,7 +647,7 @@ main :: proc() {
 
                 bg_color := [4]f32 {0, 0.4, 0.6, 1}
                 device_context->ClearRenderTargetView(framebuffer_view, &bg_color)
-                device_context->ClearDepthStencilView(depth_buffer_view, {.DEPTH}, 1, 0)
+                device_context->ClearDepthStencilView(depth_buffer_view, {.DEPTH}, 0, 0)
 
                 window_rect: win.RECT
                 win.GetClientRect(hWnd, &window_rect)

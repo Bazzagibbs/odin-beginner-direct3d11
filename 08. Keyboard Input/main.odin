@@ -111,7 +111,6 @@ main :: proc() {
                 assert_messagebox(hWnd != nil, "CreateWindowExW failed")
         }
 
-        // Provide a pointer to the app state to the wndproc
 
         // Create D3D11 Device and Context
         device         : ^d3d11.IDevice

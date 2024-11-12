@@ -15,13 +15,17 @@ import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
 
-WINDOW_NAME :: "09. 3D Camera"
-
 /*
         This example uses a flipped depth buffer (1=near, 0=far).
         Doing this allows floating-point precision to be more evenly spread out
         over the depth of the camera frustum.
+        The z-flipping is performed as part of the perspective matrix.
+
+        Changes from earlier samples:
+        - `depth_stencil_desc.DepthFunc` changed from `.LESS` to `.GREATER`
 */
+
+WINDOW_NAME :: "09. 3D Camera"
 
 assert_messagebox :: helpers.assert_messagebox
 

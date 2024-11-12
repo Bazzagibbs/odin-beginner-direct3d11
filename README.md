@@ -2,8 +2,12 @@
 
 Inspired by/ported from [KevinMoran/BeginnerDirect3D11](https://github.com/kevinmoran/BeginnerDirect3D11)
 
-Each example package can be run using `odin run .` in their respective directories.
 
+## Running example programs
+
+Make sure Odin is up to date (minimum 2024/11/11).
+
+Each example package can be run using `odin run .` in their respective directories.
 
 ---
 

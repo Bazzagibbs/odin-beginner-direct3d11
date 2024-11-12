@@ -117,6 +117,8 @@ main :: proc() {
 
                 assert_messagebox(res, "CreateDevice() failed")
         }
+        defer device->Release()
+        defer device_context->Release()
 
 
         // Debug layer
@@ -141,7 +143,7 @@ main :: proc() {
                                 info_queue->AddStorageFilterEntries(&filter)
                                 info_queue->Release()
                         }
-                        defer device_debug->Release()
+                        device_debug->Release()
                 }
         }
 
@@ -196,6 +198,7 @@ main :: proc() {
                 )
                 assert_messagebox(res, "CreateSwapChain failed")
         }
+        defer swapchain->Release()
 
 
         // Create Framebuffer Render Target and Depth buffer
@@ -399,6 +402,7 @@ main :: proc() {
                 )
                 assert_messagebox(res, "Create VertexBuffer failed")
         }
+        defer vertex_buffer->Release()
 
 
         // Create sampler state
@@ -416,6 +420,7 @@ main :: proc() {
                 res := device->CreateSamplerState(&sampler_desc, &sampler)
                 assert_messagebox(res, "Create SamplerState failed")
         }
+        defer sampler->Release()
 
 
         // Create blend state for opaque objects
@@ -430,6 +435,7 @@ main :: proc() {
                 res := device->CreateBlendState(&blend_desc, &blend_state_opaque)
                 assert_messagebox(res, "Create BlendState failed")
         }
+        defer blend_state_opaque->Release()
 
 
         // Create blend state for transparent objects
@@ -453,6 +459,7 @@ main :: proc() {
                 res := device->CreateBlendState(&blend_desc, &blend_state_transparent)
                 assert_messagebox(res, "Create BlendState failed")
         }
+        defer blend_state_transparent->Release()
 
 
         // Load opaque texture

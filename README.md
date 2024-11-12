@@ -9,6 +9,10 @@ Make sure Odin is up to date (minimum 2024/11/11).
 
 Each example package can be run using `odin run .` in their respective directories.
 
+```sh
+cd "02. Drawing a Triangle"
+odin run .
+```
 ---
 
 Images and models by Kenney licensed under Creative Commons Zero (CC0)

@@ -550,9 +550,9 @@ main :: proc() {
                 }
 
                 res := device->CreateBuffer(
-                        pDesc = &buffer_desc, 
+                        pDesc        = &buffer_desc,
                         pInitialData = nil,
-                        ppBuffer = &constant_buffer
+                        ppBuffer     = &constant_buffer
                 )
                 assert_messagebox(res, "Create ConstantBuffer failed")
         }
@@ -566,9 +566,9 @@ main :: proc() {
         cam_position := [3]f32 {0, 0, -2}
         cam_rotation := [2]f32 {0, 0}
 
-        cam_move_speed : f32 = 2
+        cam_move_speed  : f32 = 2
         cam_pitch_speed : f32 = math.PI / 2   // full pitch range per two seconds. Pitch clamped to +-90 deg
-        cam_yaw_speed : f32 = math.TAU / 8    // full yaw range per eight seconds
+        cam_yaw_speed   : f32 = math.TAU / 8    // full yaw range per eight seconds
 
         stopwatch : time.Stopwatch
         time.stopwatch_start(&stopwatch)

@@ -37,7 +37,7 @@ assert_messagebox_generic :: #force_inline proc (assertion: bool, message_args: 
         }
 }
 
-// Produce a human-readable utf-16 string from the profided HRESULT.
+// Produce a human-readable utf-16 string from the provided HRESULT.
 parse_hresult :: #force_inline proc "contextless" (hResult: win.HRESULT) -> []u16 {
         out_str: rawptr
 

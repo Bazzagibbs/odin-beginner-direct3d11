@@ -1,12 +1,10 @@
 package d3d11_demo
 
 import helpers "../0. Helpers"
-import "base:intrinsics"
 import win "core:sys/windows"
-import "core:os"
-import "core:time"
 import "core:fmt"
 import "core:math"
+import "core:slice"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
@@ -14,7 +12,6 @@ import "vendor:directx/d3d_compiler"
 WINDOW_NAME :: "04. Using a Constant Buffer"
 
 assert_messagebox :: helpers.assert_messagebox
-slice_byte_size   :: helpers.slice_byte_size
 
 did_resize : bool
 
@@ -334,7 +331,7 @@ main :: proc() {
                 vertex_offset = 0
 
                 vertex_buffer_desc := d3d11.BUFFER_DESC {
-                        ByteWidth = u32(slice_byte_size(vertex_data)),
+                        ByteWidth = u32(slice.size(vertex_data)),
                         Usage     = .IMMUTABLE,
                         BindFlags = {.VERTEX_BUFFER},
                 }

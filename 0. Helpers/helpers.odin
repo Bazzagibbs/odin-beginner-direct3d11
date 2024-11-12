@@ -54,8 +54,3 @@ parse_hresult :: #force_inline proc "contextless" (hResult: win.HRESULT) -> []u1
         return ([^]u16)(out_str)[:msg_len]
 }
 
-// Gets the byte-size of a slice's `data` buffer.
-// Not sure why this isn't part of `core:slice`. 
-slice_byte_size :: #force_inline proc "contextless" (slice: $T/[]$E) -> int {
-        return size_of(E) * len(slice)
-}

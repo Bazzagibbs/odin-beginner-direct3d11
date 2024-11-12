@@ -1,16 +1,13 @@
 package d3d11_demo
 
 import helpers "../0. Helpers"
-import "base:intrinsics"
-import "base:runtime"
 import win "core:sys/windows"
-import "core:os"
-import "core:time"
 import "core:fmt"
 import "core:image"
 import "core:image/png"
 import "core:bytes"
 import "core:mem"
+import "core:slice"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
@@ -18,7 +15,6 @@ import "vendor:directx/d3d_compiler"
 WINDOW_NAME :: "07. Drawing a Transparent Textured Quad"
 
 assert_messagebox :: helpers.assert_messagebox
-slice_byte_size   :: helpers.slice_byte_size
 
 
 App_State :: struct {
@@ -388,7 +384,7 @@ main :: proc() {
                 vertex_offset = 0
 
                 vertex_buffer_desc := d3d11.BUFFER_DESC {
-                        ByteWidth = u32(slice_byte_size(vertex_data)),
+                        ByteWidth = u32(slice.size(vertex_data)),
                         Usage     = .IMMUTABLE,
                         BindFlags = {.VERTEX_BUFFER},
                 }

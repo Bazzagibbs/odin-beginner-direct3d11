@@ -2,7 +2,6 @@ package d3d11_demo
 
 import helpers "../0. Helpers"
 import win "core:sys/windows"
-import "core:os"
 import "core:time"
 
 WINDOW_NAME :: "00. Opening a Win32 Window"

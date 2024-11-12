@@ -1,10 +1,7 @@
 package d3d11_demo
 
 import helpers "../0. Helpers"
-import "base:intrinsics"
 import win "core:sys/windows"
-import "core:os"
-import "core:time"
 import "core:fmt"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"

@@ -132,13 +132,14 @@ wavefront_load :: proc (file_data: string, flip_texture_v := true, allocator := 
                                         first_ti = ti
                                 }
 
-                                last_ti = ti
 
                                 if i > 2 {
                                         // Create fan for ngons
                                         append(&mesh_data.index_buffer, first_ti)
                                         append(&mesh_data.index_buffer, last_ti)
                                 }
+
+                                last_ti = ti
 
                                 append(&mesh_data.index_buffer, ti)
                         }

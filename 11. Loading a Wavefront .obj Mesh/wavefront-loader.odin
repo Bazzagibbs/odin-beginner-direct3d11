@@ -107,7 +107,9 @@ wavefront_load :: proc (file_data: string, allocator := context.allocator) -> (m
                                 append(&face_buffer, face_index)
                         }
 
-                        for face_index in face_buffer {
+                        first_ti, last_ti: u32
+
+                        for face_index, i in face_buffer {
                                 ti, exists := true_indices[face_index]
                                 if !exists {
                                         ti = u32(len(mesh_data.vertex_buffer))
@@ -119,6 +121,18 @@ wavefront_load :: proc (file_data: string, allocator := context.allocator) -> (m
                                                 normal    = vn_buffer[face_index.normal],
                                         }
                                         append(&mesh_data.vertex_buffer, new_vertex)
+                                }
+
+                                if i == 0 {
+                                        first_ti = ti
+                                }
+
+                                last_ti = ti
+
+                                if i > 2 {
+                                        // Create fan for ngons
+                                        append(&mesh_data.index_buffer, first_ti)
+                                        append(&mesh_data.index_buffer, last_ti)
                                 }
 
                                 append(&mesh_data.index_buffer, ti)

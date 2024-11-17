@@ -19,7 +19,7 @@ struct V2P {
 V2P vertex_main(VS_Input input) {
         V2P output;
         output.position  = mul(model_view_projection, float4(input.position, 1.0f));
-        output.tex_coord = float2(input.tex_coord.x, 1.0f - input.tex_coord.y); // this .obj has flipped v texcoord
+        output.tex_coord = input.tex_coord;
 
         return output;
 }

@@ -16,7 +16,7 @@ import "vendor:directx/dxgi"
 import "vendor:directx/d3d_compiler"
 
 
-WINDOW_NAME :: "Loading a Wavefront .obj Mesh"
+WINDOW_NAME :: "11. Loading a Wavefront .obj Mesh"
 
 assert_messagebox :: helpers.assert_messagebox
 
@@ -584,8 +584,8 @@ main :: proc() {
         cam_pitch_speed : f32 = math.PI / 2   // full pitch range per two seconds. Pitch clamped to +-90 deg
         cam_yaw_speed   : f32 = math.TAU / 8  // full yaw range per eight seconds
 
-        cube_rotation     : f32 = 0
-        cube_rotate_speed : f32 = math.TAU / 16
+        mesh_rotation     : f32 = 0
+        mesh_rotate_speed : f32 = math.TAU / 16
 
         stopwatch : time.Stopwatch
         time.stopwatch_start(&stopwatch)
@@ -670,9 +670,9 @@ main :: proc() {
                 view_rotate_matrix := linalg.matrix4_from_yaw_pitch_roll(cam_rotation.y, cam_rotation.x, 0)
                 view_matrix := linalg.inverse(view_translate_matrix * view_rotate_matrix)
 
-                // Cube model matrix
-                cube_model_matrix := linalg.matrix4_rotate_f32(cube_rotation, {0, 1, 0})
-                cube_rotation += cube_rotate_speed * delta_time
+                // Mesh model matrix
+                mesh_model_matrix := linalg.matrix4_rotate_f32(mesh_rotation, {0, 1, 0})
+                mesh_rotation += mesh_rotate_speed * delta_time
 
 
                 bg_color := [4]f32 {0, 0.4, 0.6, 1}
@@ -712,11 +712,11 @@ main :: proc() {
                 device_context->IASetVertexBuffers(0, 1, &vertex_buffer, &vertex_stride, &vertex_offset)
                 device_context->IASetIndexBuffer(index_buffer, .R32_UINT, 0) // NOTE index size changed (u16 -> u32)
 
-                // Cube
-                cube_constants := Constants { model_view_projection = projection_matrix * view_matrix * cube_model_matrix }
+                // Mesh
+                mesh_constants := Constants { model_view_projection = projection_matrix * view_matrix * mesh_model_matrix }
                 mapped_constant_buffer : d3d11.MAPPED_SUBRESOURCE
                 device_context->Map(constant_buffer, 0, .WRITE_DISCARD, {}, &mapped_constant_buffer)
-                mem.copy(mapped_constant_buffer.pData, &cube_constants, size_of(Constants))
+                mem.copy(mapped_constant_buffer.pData, &mesh_constants, size_of(Constants))
                 device_context->Unmap(constant_buffer, 0)
 
                 device_context->VSSetConstantBuffers(0, 1, &constant_buffer)

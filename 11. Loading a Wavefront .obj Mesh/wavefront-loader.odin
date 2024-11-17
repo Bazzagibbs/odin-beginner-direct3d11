@@ -48,7 +48,7 @@ Face_Index :: struct {
         
         All other statements are discarded.
 */
-wavefront_load :: proc (file_data: string, allocator := context.allocator) -> (mesh_data: Mesh_Data, ok: bool) {
+wavefront_load :: proc (file_data: string, flip_texture_v := true, allocator := context.allocator) -> (mesh_data: Mesh_Data, ok: bool) {
        
         mesh_data = Mesh_Data {
                 vertex_buffer = make([dynamic]Vertex_Data, allocator),
@@ -120,6 +120,11 @@ wavefront_load :: proc (file_data: string, allocator := context.allocator) -> (m
                                                 tex_coord = vt_buffer[face_index.tex_coord],
                                                 normal    = vn_buffer[face_index.normal],
                                         }
+
+                                        if flip_texture_v {
+                                                new_vertex.tex_coord.y = 1.0 - new_vertex.tex_coord.y
+                                        }
+
                                         append(&mesh_data.vertex_buffer, new_vertex)
                                 }
 

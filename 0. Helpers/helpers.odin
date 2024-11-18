@@ -54,3 +54,17 @@ parse_hresult :: #force_inline proc "contextless" (hResult: win.HRESULT) -> []u1
         return ([^]u16)(out_str)[:msg_len]
 }
 
+
+Matrix3_Padded :: struct {
+        col_0: [4]f32,
+        col_1: [4]f32,
+        col_2: [3]f32, // a single 32-bit element can fit in the last element instead of padding
+}
+
+pad_matrix3 :: #force_inline proc "contextless" (mat: matrix[3,3]f32) -> Matrix3_Padded {
+        return Matrix3_Padded {
+                col_0 = {mat[0].x, mat[0].y, mat[0].z, 0},
+                col_1 = {mat[1].x, mat[1].y, mat[1].z, 0},
+                col_2 = mat[2],
+        }
+}

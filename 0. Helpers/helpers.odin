@@ -16,9 +16,9 @@ assert_messagebox :: proc {
 assert_messagebox_hresult :: #force_inline proc (hResult: win.HRESULT, message_args: ..any, loc := #caller_location) {
         when !ODIN_DISABLE_ASSERT {
                 if hResult < 0 {
-                        message := fmt.tprint(message_args)
+                        message := fmt.tprint(..message_args)
                         win.MessageBoxW(nil, win.utf8_to_wstring(message), win.L("Fatal Error"), win.MB_ICONERROR | win.MB_OK)
-                        fmt.eprintfln("%v: %v %s", loc, message, parse_hresult(hResult))
+                        fmt.eprintfln("%v: %v: %s", loc, message, parse_hresult(hResult))
                         intrinsics.debug_trap()
                         os.exit(int(win.GetLastError()))
                 }
@@ -28,7 +28,7 @@ assert_messagebox_hresult :: #force_inline proc (hResult: win.HRESULT, message_a
 assert_messagebox_generic :: #force_inline proc (assertion: bool, message_args: ..any, loc := #caller_location) {
         when !ODIN_DISABLE_ASSERT {
                 if !assertion {
-                        message := fmt.tprint(message_args)
+                        message := fmt.tprint(..message_args)
                         win.MessageBoxW(nil, win.utf8_to_wstring(message), win.L("Fatal Error"), win.MB_OK)
                         fmt.eprintfln("%v: %v", loc, message)
                         intrinsics.debug_trap()
@@ -38,20 +38,24 @@ assert_messagebox_generic :: #force_inline proc (assertion: bool, message_args: 
 }
 
 // Produce a human-readable utf-16 string from the provided HRESULT.
-parse_hresult :: #force_inline proc "contextless" (hResult: win.HRESULT) -> []u16 {
-        out_str: rawptr
+// Allocates using the provided allocator.
+parse_hresult :: #force_inline proc (hResult: win.HRESULT, allocator := context.temp_allocator) -> string {
+        buf: win.wstring
 
         msg_len := win.FormatMessageW(
                 flags   =  win.FORMAT_MESSAGE_FROM_SYSTEM | win.FORMAT_MESSAGE_IGNORE_INSERTS | win.FORMAT_MESSAGE_ALLOCATE_BUFFER,
                 lpSrc   =  nil,
                 msgId   =  u32(hResult),
                 langId  =  0,
-                buf     =  (win.wstring)(&out_str),
+                buf     =  (win.LPWSTR)(&buf),
                 nsize   =  0,
                 args    =  nil
         )
 
-        return ([^]u16)(out_str)[:msg_len]
+        out_str, _ := win.utf16_to_utf8(buf[:msg_len], allocator)
+        win.LocalFree(buf)
+
+        return out_str
 }
 
 

@@ -40,7 +40,7 @@ assert_messagebox_generic :: #force_inline proc (assertion: bool, message_args: 
 // Produce a human-readable utf-16 string from the provided HRESULT.
 // Allocates using the provided allocator.
 parse_hresult :: #force_inline proc (hResult: win.HRESULT, allocator := context.temp_allocator) -> string {
-        buf: win.wstring
+        buf: [^]u16
 
         msg_len := win.FormatMessageW(
                 flags   =  win.FORMAT_MESSAGE_FROM_SYSTEM | win.FORMAT_MESSAGE_IGNORE_INSERTS | win.FORMAT_MESSAGE_ALLOCATE_BUFFER,
